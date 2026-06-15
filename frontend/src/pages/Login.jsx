@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen, ArrowRight, ShieldCheck, Phone, Sun, Moon } from 'lucide-react';
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,21 +12,46 @@ export default function Login() {
   const [name, setName] = useState('');
   const [libraryName, setLibraryName] = useState('');
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const navigate = useNavigate();
+
+  // Initialize Theme
+  useEffect(() => {
+    const isDark = localStorage.getItem('theme') === 'dark' || 
+      (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    setIsDarkMode(isDark);
+    if (isDark) document.documentElement.classList.add('dark');
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    if (!isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await axios.post('https://library-backend-1fhf.onrender.com/api/admin/request-otp', { phone });
-      toast.success('OTP sent to WhatsApp');
+      toast.success('Access code sent successfully.');
       setStep(2);
     } catch (err) {
-      toast.error('Failed to send OTP');
+      toast.error('Failed to send code. Please verify the number.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       let res;
       if (isLogin) {
@@ -36,69 +63,167 @@ export default function Login() {
       if (res.data.libraryId) localStorage.setItem('libraryId', res.data.libraryId);
       if (res.data.library) localStorage.setItem('libraryId', res.data.library._id);
       
-      toast.success(isLogin ? 'Logged in successfully' : 'Library registered successfully!');
+      toast.success(isLogin ? 'Authentication successful.' : 'Library workspace created.');
       navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Invalid OTP or error occurred');
+      toast.error(err.response?.data?.error || 'Invalid code provided.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-10 rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 to-yellow-500"></div>
-        <h2 className="text-3xl font-bold text-center text-white mb-6">LibPro Platform</h2>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
+      
+      {/* Left Branding Panel */}
+      <div className="lg:w-[45%] bg-[#F7F7F8] dark:bg-[#121214] border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800 p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+        {/* Very subtle dot grid for editorial retro feel */}
+        <div 
+          className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.02] pointer-events-none" 
+          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '32px 32px' }}
+        />
         
-        {step === 1 && (
-          <div className="flex bg-white/10 rounded-lg p-1 mb-8">
-            <button 
-              className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-white hover:bg-white/10'}`}
-              onClick={() => setIsLogin(true)}
-            >
-              Login
-            </button>
-            <button 
-              className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${!isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-white hover:bg-white/10'}`}
-              onClick={() => setIsLogin(false)}
-            >
-              Register Library
-            </button>
+        <div className="relative z-10 flex flex-col h-full justify-center">
+          <div className="w-12 h-12 bg-white dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex items-center justify-center mb-8">
+            <BookOpen size={24} className="text-zinc-900 dark:text-zinc-100" />
           </div>
-        )}
+          <h1 className="text-4xl lg:text-5xl font-medium tracking-tight leading-tight mb-6" style={{ fontFamily: 'Georgia, serif' }}>
+            The operating system for modern libraries.
+          </h1>
+          <p className="text-zinc-500 dark:text-zinc-400 text-lg max-w-md leading-relaxed">
+            Manage patrons, track physical attendance via geolocation, and automate subscription payments seamlessly.
+          </p>
+        </div>
+
+        <div className="relative z-10 mt-12 lg:mt-0">
+          <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#09090B] px-3 py-1.5 rounded-md shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Systems Operational
+          </div>
+        </div>
+      </div>
+
+      {/* Right Form Panel */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 relative">
         
-        {step === 1 ? (
-          <form onSubmit={handleRequestOtp} className="space-y-4">
-            {!isLogin && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1">Your Name</label>
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/30 transition-all" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1">Library Name</label>
-                  <input type="text" value={libraryName} onChange={(e) => setLibraryName(e.target.value)} placeholder="Central City Library" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/30 transition-all" required />
-                </div>
-              </>
+        {/* Theme Toggle */}
+        <div className="absolute top-6 right-6 z-20">
+          <button 
+            onClick={toggleTheme} 
+            className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 rounded-lg transition-colors border border-transparent dark:border-zinc-700"
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="w-full max-w-[420px]"
+        >
+          {/* Form Header */}
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-semibold tracking-tight">Admin Portal</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Authenticate to access your workspace</p>
+          </div>
+
+          {/* Clean Editorial Card */}
+          <div className="bg-white dark:bg-[#121214] p-8 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 transition-colors duration-300">
+            
+            {step === 1 && (
+              <div className="flex p-1 bg-zinc-100 dark:bg-[#09090B] rounded-xl mb-8 border border-zinc-200 dark:border-zinc-800/50">
+                <button 
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${isLogin ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'}`}
+                  onClick={() => setIsLogin(true)}
+                  type="button"
+                >
+                  Sign In
+                </button>
+                <button 
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${!isLogin ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'}`}
+                  onClick={() => setIsLogin(false)}
+                  type="button"
+                >
+                  Register
+                </button>
+              </div>
             )}
-            <div>
-              <label className="block text-sm font-medium text-white mb-1">WhatsApp Number</label>
-              <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+919876543210" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/30 transition-all" required />
-            </div>
-            <button type="submit" className="w-full py-3 mt-4 bg-white text-indigo-600 font-bold rounded-lg shadow-lg hover:bg-gray-50 transition-all transform hover:-translate-y-1">
-              Send OTP
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">Enter OTP (Use 1234 for testing)</label>
-              <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="1234" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/30 transition-all" required />
-            </div>
-            <button type="submit" className="w-full py-3 bg-white text-indigo-600 font-bold rounded-lg shadow-lg hover:bg-gray-50 transition-all transform hover:-translate-y-1">
-              {isLogin ? 'Login' : 'Create Library'}
-            </button>
-          </form>
-        )}
+            
+            <AnimatePresence mode="wait">
+              {step === 1 ? (
+                <motion.form 
+                  key="step1"
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleRequestOtp} 
+                  className="space-y-5"
+                >
+                  {!isLogin && (
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">Admin Name</label>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Name" className="w-full bg-transparent border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 rounded-xl px-4 py-3 text-sm transition-all outline-none" required />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">Library Name</label>
+                        <input type="text" value={libraryName} onChange={(e) => setLibraryName(e.target.value)} placeholder="e.g. Central Library" className="w-full bg-transparent border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 rounded-xl px-4 py-3 text-sm transition-all outline-none" required />
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">WhatsApp Number</label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-4 text-zinc-400 dark:text-zinc-500">
+                        <Phone size={16} />
+                      </div>
+                      <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 xxxxx xxxxx" className="w-full bg-transparent border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 rounded-xl pl-11 pr-4 py-3 text-sm transition-all outline-none" required />
+                    </div>
+                  </div>
+                  
+                  <button type="submit" disabled={loading} className="w-full mt-6 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 rounded-xl py-3 font-medium hover:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                    {loading ? 'Sending code...' : <>Continue <ArrowRight size={16} /></>}
+                  </button>
+                </motion.form>
+              ) : (
+                <motion.form 
+                  key="step2"
+                  initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
+                  onSubmit={handleSubmit} 
+                  className="space-y-6"
+                >
+                  <div className="text-center mb-8">
+                    <div className="mx-auto w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
+                      <ShieldCheck size={24} className="text-emerald-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Verify Identity</h3>
+                    <p className="text-sm text-zinc-500 mt-1">We sent a secure code to {phone}</p>
+                  </div>
+
+                  <div>
+                    <input 
+                      type="text" 
+                      maxLength={4}
+                      value={otp} 
+                      onChange={(e) => setOtp(e.target.value)} 
+                      placeholder="• • • •" 
+                      className="w-full bg-transparent border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 rounded-xl px-4 py-4 text-center font-mono text-2xl tracking-[0.5em] font-bold outline-none transition-all" 
+                      required 
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={() => setStep(1)} className="flex-1 bg-white dark:bg-[#121214] text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl py-3 font-medium transition-all">
+                      Back
+                    </button>
+                    <button type="submit" disabled={loading} className="flex-[2] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 rounded-xl py-3 font-medium hover:scale-[0.98] transition-all disabled:opacity-50">
+                      {loading ? 'Verifying...' : 'Sign In'}
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
