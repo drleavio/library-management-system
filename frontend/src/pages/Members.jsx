@@ -151,17 +151,78 @@ export default function Members() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Members Directory</h2>
-        <button 
-          onClick={openAddModal}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center space-x-2 hover:bg-indigo-700 transition-colors"
-        >
-          <Plus size={20} /> <span>Add Member</span>
-        </button>
-      </div>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+  <div>
+    <h1 className="text-3xl font-bold text-slate-900">
+      Members Directory
+    </h1>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <p className="text-slate-500 mt-1">
+      Manage memberships, subscriptions and attendance.
+    </p>
+  </div>
+
+  <button
+    onClick={openAddModal}
+    className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2 shadow-lg hover:scale-105 transition-all"
+  >
+    <Plus size={18} />
+    Add Member
+  </button>
+</div>
+
+     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+  <div className="bg-white rounded-3xl p-6 shadow-lg border border-slate-200 hover:-translate-y-1 transition-all">
+    <p className="text-slate-500 text-sm">
+      Total Members
+    </p>
+    <h2 className="text-3xl font-bold mt-2">
+      {users.length}
+    </h2>
+  </div>
+
+  <div className="bg-white rounded-3xl p-6 shadow-lg border border-slate-200 hover:-translate-y-1 transition-all">
+    <p className="text-slate-500 text-sm">
+      Active Members
+    </p>
+    <h2 className="text-3xl font-bold text-green-600 mt-2">
+      {
+        users.filter(
+          u => u.status === "active"
+        ).length
+      }
+    </h2>
+  </div>
+
+  <div className="bg-white rounded-3xl p-6 shadow-lg border border-slate-200 hover:-translate-y-1 transition-all">
+    <p className="text-slate-500 text-sm">
+      Premium Members
+    </p>
+    <h2 className="text-3xl font-bold text-yellow-600 mt-2">
+      {
+        users.filter(
+          u => u.isPremium
+        ).length
+      }
+    </h2>
+  </div>
+
+  <div className="bg-white rounded-3xl p-6 shadow-lg border border-slate-200 hover:-translate-y-1 transition-all">
+    <p className="text-slate-500 text-sm">
+      Pending Payments
+    </p>
+    <h2 className="text-3xl font-bold text-red-600 mt-2">
+      {
+        users.filter(
+          u => u.status ===
+          "pending_payment"
+        ).length
+      }
+    </h2>
+  </div>
+</div>
+
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col xl:flex-row gap-4 bg-slate-50 items-center justify-between">
           <div className="relative flex-1 w-full xl:w-auto min-w-[250px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -170,7 +231,7 @@ export default function Members() {
               placeholder="Search by name or phone..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
           <div className="flex flex-wrap gap-3 w-full xl:w-auto">
@@ -213,7 +274,9 @@ export default function Members() {
                 </tr>
               ) : (
                 filteredUsers.map(user => (
-                  <tr key={user._id} className="hover:bg-slate-50 transition-colors">
+                  <tr
+  key={user._id}
+  className="hover:bg-violet-50 transition-all duration-200">
                 <td className="px-6 py-4 font-medium text-slate-800">
                   {user.name}
                   {user.isPremium && <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Premium</span>}
@@ -222,7 +285,7 @@ export default function Members() {
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     user.status === 'active' ? 'bg-green-100 text-green-700' :
-                    user.status === 'pending_payment' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                    user.status === 'pending_payment' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-700'
                   }`}>
                     {user.status}
                   </span>
@@ -231,9 +294,9 @@ export default function Members() {
                   {new Date(user.subscriptionEndDate).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 flex items-center space-x-2">
-                  <button onClick={() => handleViewHistory(user._id)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View History"><History size={18} /></button>
-                  <button onClick={() => handleEdit(user)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
-                  <button onClick={() => handleDelete(user._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                  <button onClick={() => handleViewHistory(user._id)} className="h-10 w-10 flex items-center justify-center text-indigo-600 bg-slate-100 hover:bg-indigo-100 rounded-xl transition-all" title="View History"><History size={18} /></button>
+                  <button onClick={() => handleEdit(user)} className="h-10 w-10 flex items-center justify-center text-indigo-600 bg-slate-100 hover:bg-indigo-100 rounded-xl transition-all"><Edit2 size={18} /></button>
+                  <button onClick={() => handleDelete(user._id)} className="h-10 w-10 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"><Trash2 size={18} /></button>
                   {user.status === 'pending_payment' && (
                     <button 
                       onClick={() => handleApprovePayment(user._id)}
@@ -253,7 +316,7 @@ export default function Members() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl border border-slate-200">
             <h3 className="text-xl font-bold mb-6">{editingUserId ? 'Edit Member' : 'Add New Member'}</h3>
             <form onSubmit={handleSaveMember} className="space-y-4">
               <div>
@@ -326,8 +389,8 @@ export default function Members() {
                           <div className="text-xs text-slate-500 mt-1">UTR: {p.utrNumber}</div>
                         </div>
                         <div className="text-right">
-                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${p.status === 'verified' ? 'bg-green-100 text-green-700' : p.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {p.status.toUpperCase()}
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${p.status === 'verified' ? 'bg-emerald-100 text-emerald-700' : p.status === 'rejected' ? '' : 'bg-amber-100 text-amber-700'}`}>
+                            {p.status.toUpperCase()}bg-red-100 text-red-700
                           </span>
                           <div className="text-xs text-slate-400 mt-1">{new Date(p.createdAt).toLocaleDateString()}</div>
                         </div>

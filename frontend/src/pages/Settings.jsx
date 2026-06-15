@@ -1,7 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { MapPin, QrCode, MessageCircle, LogOut } from 'lucide-react';
+import { MapPin, QrCode, MessageCircle, LogOut, Loader2, CheckCircle } from 'lucide-react';
+
+const SectionHeader = ({ icon: Icon, label, color }) => (
+  <div className="flex items-center gap-3 pb-4 mb-6" style={{ borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
+    <div
+      className="w-9 h-9 rounded-xl flex items-center justify-center"
+      style={{ background: `${color}15`, color }}
+    >
+      <Icon size={18} />
+    </div>
+    <h3 className="font-bold text-base" style={{ color: "#1e1b4b" }}>{label}</h3>
+  </div>
+);
+
+const InputField = ({ label, hint, children }) => (
+  <div>
+    <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "#94a3b8" }}>{label}</label>
+    {children}
+    {hint && <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>{hint}</p>}
+  </div>
+);
+
+const inputStyle = {
+  width: "100%",
+  border: "1px solid rgba(124,58,237,0.2)",
+  borderRadius: "12px",
+  padding: "10px 14px",
+  fontSize: "14px",
+  color: "#1e1b4b",
+  background: "#fafafa",
+  outline: "none",
+};
 
 export default function Settings() {
   const [config, setConfig] = useState({ latitude: '', longitude: '', radiusMeters: 50, upiId: '' });
@@ -15,9 +46,7 @@ export default function Settings() {
         const res = await axios.get('https://library-backend-1fhf.onrender.com/api/admin/dashboard', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.data.config) {
-          setConfig(res.data.config);
-        }
+        if (res.data.config) setConfig(res.data.config);
       } catch (error) {
         console.error("Failed to fetch config");
       }
@@ -37,10 +66,8 @@ export default function Settings() {
         console.error("Failed to fetch WhatsApp status");
       }
     };
-
     fetchWhatsAppStatus();
     intervalId = setInterval(fetchWhatsAppStatus, 3000);
-
     return () => clearInterval(intervalId);
   }, []);
 
@@ -72,42 +99,34 @@ export default function Settings() {
   };
 
   const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
-      return;
-    }
+    if (!navigator.geolocation) { toast.error("Geolocation not supported"); return; }
     toast.loading("Fetching location...", { id: "loc" });
-    navigator.geolocation.getCurrentPosition((position) => {
-      setConfig({
-        ...config,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      });
-      toast.success("Location acquired", { id: "loc" });
-    }, (error) => {
-      if (error.code === 2) {
-        toast.loading("Hardware GPS failed. Fetching IP location...", { id: "loc" });
-        axios.get('https://ipapi.co/json/')
-          .then(res => {
-            setConfig({
-              ...config,
-              latitude: res.data.latitude,
-              longitude: res.data.longitude
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setConfig({ ...config, latitude: position.coords.latitude, longitude: position.coords.longitude });
+        toast.success("Location acquired", { id: "loc" });
+      },
+      (error) => {
+        if (error.code === 2) {
+          toast.loading("Trying IP fallback...", { id: "loc" });
+          axios.get('https://ipapi.co/json/')
+            .then(res => {
+              setConfig({ ...config, latitude: res.data.latitude, longitude: res.data.longitude });
+              toast.success("Location acquired via IP", { id: "loc" });
+            })
+            .catch(() => {
+              toast.error("Could not get location.", { id: "loc" });
+              setConfig({ ...config, latitude: 28.6139, longitude: 77.2090 });
             });
-            toast.success("Location acquired via IP fallback.", { id: "loc" });
-          })
-          .catch(() => {
-            toast.error("IP fallback failed. Used default coordinates.", { id: "loc" });
-            setConfig({ ...config, latitude: 28.6139, longitude: 77.2090 });
-          });
-        return;
-      }
-
-      let msg = "Unable to retrieve location.";
-      if (error.code === 1) msg = "Permission denied. Enable Location Services in Mac System Settings.";
-      if (error.code === 3) msg = "Location request timed out.";
-      toast.error(msg, { id: "loc" });
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+          return;
+        }
+        let msg = "Unable to retrieve location.";
+        if (error.code === 1) msg = "Permission denied. Enable Location Services.";
+        if (error.code === 3) msg = "Location request timed out.";
+        toast.error(msg, { id: "loc" });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   const handleWhatsAppLogout = async () => {
@@ -115,7 +134,7 @@ export default function Settings() {
       await axios.post('https://library-backend-1fhf.onrender.com/api/admin/whatsapp/logout', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success("Disconnected from WhatsApp. A new QR will be generated.");
+      toast.success("Disconnected from WhatsApp.");
       setWhatsappStatus({ ready: false, qr: '' });
     } catch (err) {
       toast.error("Failed to disconnect");
@@ -127,7 +146,7 @@ export default function Settings() {
       await axios.post('https://library-backend-1fhf.onrender.com/api/admin/whatsapp/reset', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success("Server is restarting to clear WhatsApp session. Please wait 10 seconds and refresh the page.");
+      toast.success("Restarting... Please refresh in 10 seconds.");
       setWhatsappStatus({ ready: false, qr: '' });
     } catch (err) {
       toast.error("Failed to reset");
@@ -135,70 +154,102 @@ export default function Settings() {
   };
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h2 className="text-2xl font-bold text-slate-800">Library Settings</h2>
-      
-      <form onSubmit={handleSave} className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 space-y-8">
-        
-        {/* WhatsApp Integration */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2 text-indigo-600 font-bold text-lg border-b pb-2">
-            <MessageCircle size={24} /> <span>WhatsApp Automation</span>
-          </div>
-          <p className="text-sm text-slate-500 mb-4">Connect your WhatsApp number to automatically send attendance reports and payment reminders.</p>
-          
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 flex flex-col md:flex-row items-center gap-8">
-            <div className="flex-1 space-y-3">
-              <h4 className="font-bold text-slate-800 text-lg">Connection Status</h4>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold" style={{ color: "#1e1b4b" }}>Settings</h1>
+        <p className="mt-1 text-sm" style={{ color: "#94a3b8" }}>Configure WhatsApp automation, geofencing, and payment settings.</p>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-4">
+
+        {/* WhatsApp */}
+        <div className="rounded-2xl p-6" style={{ background: "white", border: "1px solid rgba(124,58,237,0.08)", boxShadow: "0 2px 12px rgba(124,58,237,0.05)" }}>
+          <SectionHeader icon={MessageCircle} label="WhatsApp Automation" color="#7c3aed" />
+          <p className="text-sm mb-6" style={{ color: "#64748b" }}>
+            Connect your WhatsApp account to send automated attendance reports and payment reminders.
+          </p>
+
+          <div
+            className="rounded-2xl p-6 flex flex-col lg:flex-row gap-8 items-start lg:items-center"
+            style={{ background: "rgba(248,247,255,0.8)", border: "1px solid rgba(124,58,237,0.1)" }}
+          >
+            <div className="flex-1 space-y-4">
+              <p className="font-semibold text-sm" style={{ color: "#1e1b4b" }}>Connection Status</p>
+
               {whatsappStatus.ready ? (
-                <div className="space-y-4">
-                  <div className="inline-flex items-center text-green-700 bg-green-100 px-3 py-1.5 rounded-full font-bold text-sm shadow-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
-                    Connected & Ready to Send
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: "#dcfce7" }}>
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-xs font-semibold" style={{ color: "#16a34a" }}>Connected & Ready</span>
                   </div>
-                  <p className="text-sm text-slate-600">Your number is linked. Automated messages will be sent from this account.</p>
-                  <button type="button" onClick={handleWhatsAppLogout} className="text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center">
-                    <LogOut size={16} className="mr-2" /> Disconnect Number
+                  <p className="text-sm" style={{ color: "#64748b" }}>WhatsApp is connected and ready to send messages.</p>
+                  <button
+                    type="button"
+                    onClick={handleWhatsAppLogout}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                    style={{ background: "rgba(220,38,38,0.08)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.15)" }}
+                  >
+                    <LogOut size={15} /> Disconnect Number
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="inline-flex items-center text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full font-bold text-sm shadow-sm">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 mr-2 animate-pulse"></div>
-                    Waiting for Scan...
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: "#fef3c7" }}>
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-xs font-semibold" style={{ color: "#d97706" }}>Waiting for Scan</span>
                   </div>
-                  <ul className="text-sm text-slate-600 list-decimal pl-4 space-y-1 mt-2">
+                  <ol className="text-sm space-y-1 list-decimal pl-5" style={{ color: "#64748b" }}>
                     <li>Open WhatsApp on your phone</li>
-                    <li>Tap Menu ⋮ or Settings ⚙️</li>
-                    <li>Tap <b>Linked Devices</b></li>
-                    <li>Tap <b>Link a Device</b> and point your phone at the QR code</li>
-                  </ul>
+                    <li>Go to Linked Devices</li>
+                    <li>Tap "Link a Device"</li>
+                    <li>Scan the QR code</li>
+                  </ol>
                 </div>
               )}
             </div>
-            
+
             {!whatsappStatus.ready && (
               <div className="flex flex-col items-center gap-3">
                 {whatsappStatus.initialized ? (
-                  <div className="w-48 h-48 bg-white border-2 border-dashed border-indigo-200 rounded-2xl flex items-center justify-center p-2 shadow-sm overflow-hidden shrink-0">
-                    {whatsappStatus.qr ? (
-                      <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(whatsappStatus.qr)}&size=200x200`} alt="WhatsApp QR Code" className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="text-slate-400 text-sm text-center font-medium animate-pulse">Generating<br/>QR Code...</div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div
+                      className="w-48 h-48 rounded-2xl flex items-center justify-center overflow-hidden"
+                      style={{ background: "white", border: "2px solid rgba(124,58,237,0.2)", boxShadow: "0 4px 20px rgba(124,58,237,0.1)" }}
+                    >
+                      {whatsappStatus.qr ? (
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(whatsappStatus.qr)}&size=200x200`}
+                          alt="WhatsApp QR"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2" style={{ color: "#94a3b8" }}>
+                          <Loader2 size={24} className="animate-spin" />
+                          <span className="text-xs">Generating QR...</span>
+                        </div>
+                      )}
+                    </div>
+                    {whatsappStatus.initialized && !whatsappStatus.qr && (
+                      <button
+                        type="button"
+                        onClick={handleWhatsAppReset}
+                        className="text-xs underline"
+                        style={{ color: "#ef4444" }}
+                      >
+                        Force Reset
+                      </button>
                     )}
                   </div>
                 ) : (
-                  <button type="button" onClick={handleConnectWhatsApp} disabled={connecting} className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2">
-                    {connecting ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Connecting...</>
-                    ) : (
-                      <><MessageCircle size={18} /> Connect WhatsApp</>
-                    )}
-                  </button>
-                )}
-                {whatsappStatus.initialized && !whatsappStatus.qr && (
-                  <button type="button" onClick={handleWhatsAppReset} className="text-xs text-red-500 hover:text-red-700 underline font-medium">
-                    Stuck? Force Reset Connection
+                  <button
+                    type="button"
+                    onClick={handleConnectWhatsApp}
+                    disabled={connecting}
+                    className="flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg,#16a34a,#22c55e)", boxShadow: "0 4px 16px rgba(22,163,74,0.3)" }}
+                  >
+                    {connecting ? <Loader2 size={16} className="animate-spin" /> : <MessageCircle size={16} />}
+                    Connect WhatsApp
                   </button>
                 )}
               </div>
@@ -206,53 +257,82 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Geofencing Settings */}
-        <div className="space-y-4 pt-6">
-          <div className="flex items-center space-x-2 text-indigo-600 font-bold text-lg border-b pb-2">
-            <MapPin size={24} /> <span>Geofencing & Location</span>
-          </div>
-          <p className="text-sm text-slate-500 mb-4">Set the physical coordinates of your library to allow user check-ins.</p>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
-              <input type="number" step="any" value={config.latitude} onChange={e => setConfig({...config, latitude: e.target.value})} className="w-full border rounded-lg p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
-              <input type="number" step="any" value={config.longitude} onChange={e => setConfig({...config, longitude: e.target.value})} className="w-full border rounded-lg p-2" required />
-            </div>
-          </div>
-          
-          <div className="flex space-x-4 pt-2">
-            <button type="button" onClick={handleGetLocation} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-200 transition-colors">
-              Use My Current Location
-            </button>
+        {/* Geofencing */}
+        <div className="rounded-2xl p-6" style={{ background: "white", border: "1px solid rgba(124,58,237,0.08)", boxShadow: "0 2px 12px rgba(124,58,237,0.05)" }}>
+          <SectionHeader icon={MapPin} label="Geofencing & Location" color="#2563eb" />
+          <p className="text-sm mb-6" style={{ color: "#64748b" }}>
+            Set your library coordinates so members can only check in when physically nearby.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <InputField label="Latitude">
+              <input
+                type="number"
+                step="any"
+                value={config.latitude}
+                onChange={e => setConfig({ ...config, latitude: e.target.value })}
+                style={inputStyle}
+                required
+              />
+            </InputField>
+            <InputField label="Longitude">
+              <input
+                type="number"
+                step="any"
+                value={config.longitude}
+                onChange={e => setConfig({ ...config, longitude: e.target.value })}
+                style={inputStyle}
+                required
+              />
+            </InputField>
           </div>
 
-          <div className="pt-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Allowed Radius (meters)</label>
-            <input type="number" value={config.radiusMeters} onChange={e => setConfig({...config, radiusMeters: e.target.value})} className="w-full md:w-1/2 border rounded-lg p-2" required />
-            <p className="text-xs text-slate-500 mt-1">Users must be within this distance to check in.</p>
-          </div>
+          <button
+            type="button"
+            onClick={handleGetLocation}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white mb-6 transition-all"
+            style={{ background: "linear-gradient(135deg,#2563eb,#06b6d4)", boxShadow: "0 4px 14px rgba(37,99,235,0.25)" }}
+          >
+            <MapPin size={15} /> Use My Current Location
+          </button>
+
+          <InputField label="Allowed Radius (meters)" hint="Members must stay within this radius to check in.">
+            <input
+              type="number"
+              value={config.radiusMeters}
+              onChange={e => setConfig({ ...config, radiusMeters: e.target.value })}
+              style={{ ...inputStyle, maxWidth: "240px" }}
+              required
+            />
+          </InputField>
         </div>
 
-        {/* Payment Settings */}
-        <div className="space-y-4 pt-6">
-          <div className="flex items-center space-x-2 text-indigo-600 font-bold text-lg border-b pb-2">
-            <QrCode size={24} /> <span>Payment Configuration</span>
-          </div>
-          <p className="text-sm text-slate-500 mb-4">This UPI ID will be sent to users in payment reminders.</p>
-          
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">UPI ID</label>
-            <input type="text" value={config.upiId} onChange={e => setConfig({...config, upiId: e.target.value})} placeholder="example@upi" className="w-full md:w-1/2 border rounded-lg p-2" />
-          </div>
+        {/* Payment */}
+        <div className="rounded-2xl p-6" style={{ background: "white", border: "1px solid rgba(124,58,237,0.08)", boxShadow: "0 2px 12px rgba(124,58,237,0.05)" }}>
+          <SectionHeader icon={QrCode} label="Payment Configuration" color="#d97706" />
+          <p className="text-sm mb-6" style={{ color: "#64748b" }}>
+            The UPI ID members will use to submit their subscription payments.
+          </p>
+
+          <InputField label="UPI ID">
+            <input
+              type="text"
+              value={config.upiId}
+              onChange={e => setConfig({ ...config, upiId: e.target.value })}
+              placeholder="example@upi"
+              style={{ ...inputStyle, maxWidth: "360px" }}
+            />
+          </InputField>
         </div>
 
-        <div className="pt-6 flex justify-end">
-          <button type="submit" className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg">
-            Save Settings
+        {/* Save */}
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-8 py-3 rounded-2xl text-sm font-bold text-white transition-all"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}
+          >
+            <CheckCircle size={16} /> Save Settings
           </button>
         </div>
       </form>
